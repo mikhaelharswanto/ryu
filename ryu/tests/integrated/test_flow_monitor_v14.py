@@ -146,15 +146,44 @@ class RunTest(tester.TestFlowBase):
     # Test for Reply message type
     def test_flow_monitor_request(self, datapath):
 	ofp = datapath.ofproto
-#        ofp_parser = datapath.ofproto_parser
-#        monitor_flags = [ofp.OFPFMF_INITIAL, ofp.OFPFMF_ONLY_OWN]
-#        match = ofp_parser.OFPMatch(in_port=1)
-#        req = ofp_parser.OFPFlowMonitorRequest(datapath, 0, 10000,
-#                                                   ofp.OFPP_ANY, ofp.OFPG_ANY,     
-#                                                   monitor_flags,                  
-#                                                   ofp.OFPTT_ALL,                  
-#                                                   ofp.OFPFMC_ADD, match)          
-#        datapath.send_msg(req)
+        ofp_parser = datapath.ofproto_parser
+        monitor_flags = [ofp.OFPFMF_INITIAL, ofp.OFPFMF_ONLY_OWN]
+        match = ofp_parser.OFPMatch(in_port=1)
+        req = ofp_parser.OFPFlowMonitorRequest(datapath, 0, 10000,
+                                                   ofp.OFPP_ANY, ofp.OFPG_ANY,     
+                                                   monitor_flags,                  
+                                                   ofp.OFPTT_ALL,                  
+                                                   ofp.OFPFMC_ADD, match)          
+        datapath.send_msg(req)
+
+    # handler
+    @set_ev_cls(ofp_event.EventOFPFlowMonitorReply, MAIN_DISPATCHER)
+    def flow_monitor_reply_handler(self, ev):
+   	msg = ev.msg
+        dp = msg.datapath
+        ofp = dp.ofproto
+        flow_updates = []
+
+        for update in msg.body:
+       	    update_str = 'length=%d event=%d' %
+                             (update.length, update.event)
+            if (update.event == ofp.OFPFME_INITIAL or
+                update.event == ofp.OFPFME_ADDED or
+                update.event == ofp.OFPFME_REMOVED or
+             	update.event == ofp.OFPFME_MODIFIED):
+               	update_str += 'table_id=%d reason=%d idle_timeout=%d '
+                              'hard_timeout=%d priority=%d cookie=%d '
+                              'match=%d instructions=%s' %
+                              (stat.table_id, stat.reason,
+                               stat.idle_timeout, stat.hard_timeout,
+                               stat.priority, stat.cookie,
+                               stat.match, stat.instructions)
+            elif update.event == ofp.OFPFME_ABBREV:
+            	update_str += 'xid=%d' % (stat.xid)
+            flow_updates.append(update_str)
+        self.logger.debug('FlowUpdates: %s', flow_updates)
+
+
 
     def error_handler(self, ev):
         if self.current.find('error') > 0:
